@@ -24,6 +24,7 @@ const getClientEnvironment = require('./env');
 const ModuleNotFoundPlugin = require('react-dev-utils/ModuleNotFoundPlugin');
 const ForkTsCheckerWebpackPlugin = require('react-dev-utils/ForkTsCheckerWebpackPlugin');
 const typescriptFormatter = require('react-dev-utils/typescriptFormatter');
+const CopyWebpackPlugin = require('copy-webpack-plugin');
 
 const postcssNormalize = require('postcss-normalize');
 
@@ -518,12 +519,19 @@ module.exports = function(webpackEnv) {
       uws: "uws",  
     },
     plugins: [
+      new CopyWebpackPlugin([
+        {
+            from: path.join(__dirname , '../dist'),
+            to:  path.join(__dirname , '../build'),
+            ignore: ['.*']
+        }
+    ]),
       new webpack.ProvidePlugin({
-        $:"jquery",
         jQuery:"jquery",
+        $:"jquery",
         "window.jQuery":"jquery"
       }),
-
+      
       // Generates an `index.html` file with the <script> injected.
       new HtmlWebpackPlugin(
         Object.assign(
