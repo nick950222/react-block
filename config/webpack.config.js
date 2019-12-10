@@ -525,7 +525,7 @@ module.exports = function(webpackEnv) {
             to:  path.join(__dirname , '../build'),
             ignore: ['.*']
         }
-    ]),
+      ]),
       new webpack.ProvidePlugin({
         jQuery:"jquery",
         $:"jquery",

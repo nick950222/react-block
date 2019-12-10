@@ -1,23 +1,22 @@
-import React from 'react';
-import {useState,useEffect,useCallback,useRef} from 'react'
-import RTCMultiConnection from '../../dist/RTCMultiConnection.min'
-import 'bootstrap/dist/css/bootstrap.min.css';
-import 'bootstrap/dist/js/bootstrap';
+import React from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import RTCMultiConnection from "../../dist/RTCMultiConnection.min";
+import "bootstrap/dist/css/bootstrap.min.css";
+import "bootstrap/dist/js/bootstrap";
 
-const style = require('./index.css')
+const style = require("./index.css");
 
 const connection = new (RTCMultiConnection as any)();
 
-// 首先要计算params 
+// 首先要计算params
 
-connection.socketURL = 'http://localhost:9000';
+connection.socketURL = "http://localhost:9000";
 // connection.socketURL = 'https://rtcmulticonnection.herokuapp.com:443/';
 
-connection.socketURL = '/';
+connection.socketURL = "/";
 // connection.socketURL = 'https://rtcmulticonnection.herokuapp.com:443/';
 
-
-connection.socketMessageEvent = 'canvas-dashboard-demo';
+connection.socketMessageEvent = "canvas-dashboard-demo";
 
 // keep room opened even if owner leaves
 connection.autoCloseEntireSession = true;
@@ -87,191 +86,325 @@ connection.maxRelayLimitPerUser = 1;
 //         connection.open(connection.userid);
 //     });
 // });
-    
-const Room : React.FC = ()=>{
-    const params = new URLSearchParams(window.location.hash.slice(6)) as any
-    connection.extra.userFullName = params.userFullName;
-    connection.publicRoomIdentifier = params.publicRoomIdentifier;
-    const designer = useRef(new (window as any).CanvasDesigner)
 
-    useEffect(()=>{
-        designer.current.widgetHtmlURL = 'widget.html'
-        designer.current.widgetJsURL = 'widget.min.js'
-        designer.current.addSyncListener(function(data : any) {
-            connection.send(data);
+const Room: React.FC = () => {
+  const params = new URLSearchParams(window.location.hash.slice(6)) as any;
+  connection.extra.userFullName = params.userFullName;
+  connection.publicRoomIdentifier = params.publicRoomIdentifier;
+  const designer = useRef(new (window as any).CanvasDesigner());
+
+  const getFullName = (userid: string) => {
+    var _userFullName = userid;
+    if (
+      connection.peers[userid] &&
+      connection.peers[userid].extra.userFullName
+    ) {
+      _userFullName = connection.peers[userid].extra.userFullName;
+    }
+    return _userFullName;
+  };
+
+  const appendChatMessage = (event: any, checkmark_id?: string) => {
+    let div = document.createElement("div");
+    let conversationPanel = document.getElementById(
+      "conversation-panel"
+    ) as HTMLDivElement;
+    div.className = "message";
+
+    if (event.data) {
+      div.innerHTML =
+        "<b>" +
+        (event.extra.userFullName || event.userid) +
+        ":</b><br>" +
+        event.data.chatMessage;
+
+      if (event.data.checkmark_id) {
+        connection.send({
+          checkmark: "received",
+          checkmark_id: event.data.checkmark_id
         });
-        designer.current.setSelected('pencil');
-        designer.current.setTools({
-            pencil: true,
-            text: true,
-            image: true,
-            pdf: true,
-            eraser: true,
-            line: true,
-            arrow: true,
-            dragSingle: true,
-            dragMultiple: true,
-            arc: true,
-            rectangle: true,
-            quadratic: false,
-            bezier: true,
-            marker: true,
-            zoom: false,
-            lineWidth: false,
-            colorsPicker: false,
-            extraOptions: false,
-            code: false,
-            undo: true
-        });
-    },[]) // 这里网上都是初始化canvas-designer
-
-    useEffect(()=>{
-        connection.chunkSize = 16000;
-connection.enableFileSharing = true;
-
-connection.session = {
-    audio: true,
-    video: true,
-    data: true
-};
-connection.sdpConstraints.mandatory = {
-    OfferToReceiveAudio: true,
-    OfferToReceiveVideo: true
-};
-
-connection.onUserStatusChanged = function(event) {
-    var infoBar = document.getElementById('onUserStatusChanged');
-    var names = [];
-    connection.getAllParticipants().forEach(function(pid) {
-        names.push(getFullName(pid));
-    });
-
-    if (!names.length) {
-        names = ['Only You'];
+      }
     } else {
-        names = [connection.extra.userFullName || 'You'].concat(names);
+      div.innerHTML =
+        '<b>You:</b> <img class="checkmark" id="' +
+        checkmark_id +
+        '" title="Received" src="https://www.webrtc-experiment.com/images/checkmark.png"><br>' +
+        event;
+      div.style.background = "#cbffcb";
     }
 
-    infoBar.innerHTML = '<b>Active users:</b> ' + names.join(', ');
-};
+    conversationPanel.appendChild(div);
 
-connection.onopen = function(event) {
-    connection.onUserStatusChanged(event);
+    conversationPanel.scrollTop = conversationPanel.clientHeight;
+    conversationPanel.scrollTop =
+      conversationPanel.scrollHeight - conversationPanel.scrollTop;
+  };
 
-    if (designer.pointsLength <= 0) {
+  useEffect(() => {
+    designer.current.widgetHtmlURL = "widget.html";
+    designer.current.widgetJsURL = "widget.min.js";
+    designer.current.addSyncListener(function(data: any) {
+      connection.send(data);
+    });
+    designer.current.setSelected("pencil");
+    designer.current.setTools({
+      pencil: true,
+      text: true,
+      image: true,
+      pdf: true,
+      eraser: true,
+      line: true,
+      arrow: true,
+      dragSingle: true,
+      dragMultiple: true,
+      arc: true,
+      rectangle: true,
+      quadratic: false,
+      bezier: true,
+      marker: true,
+      zoom: false,
+      lineWidth: false,
+      colorsPicker: false,
+      extraOptions: false,
+      code: false,
+      undo: true
+    });
+  }, []); // 这里网上都是初始化canvas-designer
+
+  useEffect(() => {
+    connection.chunkSize = 16000;
+    connection.enableFileSharing = true;
+
+    connection.session = {
+      audio: true,
+      video: true,
+      data: true
+    };
+    connection.sdpConstraints.mandatory = {
+      OfferToReceiveAudio: true,
+      OfferToReceiveVideo: true
+    };
+
+    connection.onUserStatusChanged = function(event: any) {
+      const infoBar = document.getElementById("onUserStatusChanged");
+      let names: Array<string> = [];
+      connection.getAllParticipants().map((pid: string) => {
+        names.push(getFullName(pid));
+      });
+
+      if (!names.length) {
+        names = ["Only You"];
+      } else {
+        names = [connection.extra.userFullName || "You"].concat(names);
+      }
+
+      infoBar &&
+        (infoBar.innerHTML = "<b>Active users:</b> " + names.join(", "));
+    };
+
+    connection.onopen = function(event: any) {
+      connection.onUserStatusChanged(event);
+
+      if (designer.current.pointsLength <= 0) {
         // make sure that remote user gets all drawings synced.
         setTimeout(function() {
-            connection.send('plz-sync-points');
+          connection.send("plz-sync-points");
         }, 1000);
-    }
+      }
 
-    document.getElementById('btn-chat-message').disabled = false;
-    document.getElementById('btn-attach-file').style.display = 'inline-block';
-    document.getElementById('btn-share-screen').style.display = 'inline-block';
-};
+      (document.getElementById("btn-chat-message") as any).disabled = false;
+      document.getElementById("btn-attach-file")!.style.display =
+        "inline-block";
+      document.getElementById("btn-share-screen")!.style.display =
+        "inline-block";
+    };
 
-connection.onclose = connection.onerror = connection.onleave = function(event) {
-    connection.onUserStatusChanged(event);
-};
+    connection.onclose = connection.onerror = connection.onleave = function(
+      event: any
+    ) {
+      connection.onUserStatusChanged(event);
+    };
 
-connection.onmessage = function(event) {
-    if(event.data.showMainVideo) {
+    connection.onmessage = function(event: any) {
+      if (event.data.showMainVideo) {
         // $('#main-video').show();
-        $('#screen-viewer').css({
-            top: $('#widget-container').offset().top,
-            left: $('#widget-container').offset().left,
-            width: $('#widget-container').width(),
-            height: $('#widget-container').height()
-        });
-        $('#screen-viewer').show();
-        return;
-    }
+        let top = ($("#widget-container").offset() as any).top,
+          left = ($("#widget-container").offset() as any).left,
+          width = $("#widget-container")!.width() as any,
+          height = $("#widget-container")!.height() as any;
 
-    if(event.data.hideMainVideo) {
+        $("#screen-viewer").css("top", top);
+        $("#screen-viewer").css("left", left);
+        $("#screen-viewer").css("width", width);
+        $("#screen-viewer").css("height", height);
+        $("#screen-viewer").show();
+        return;
+      }
+
+      if (event.data.hideMainVideo) {
         // $('#main-video').hide();
-        $('#screen-viewer').hide();
+        $("#screen-viewer").hide();
         return;
-    }
+      }
 
-    if(event.data.typing === true) {
-        $('#key-press').show().find('span').html(event.extra.userFullName + ' is typing');
+      if (event.data.typing === true) {
+        $("#key-press")
+          .show()
+          .find("span")
+          .html(event.extra.userFullName + " is typing");
         return;
-    }
+      }
 
-    if(event.data.typing === false) {
-        $('#key-press').hide().find('span').html('');
+      if (event.data.typing === false) {
+        $("#key-press")
+          .hide()
+          .find("span")
+          .html("");
         return;
-    }
+      }
 
-    if (event.data.chatMessage) {
+      if (event.data.chatMessage) {
         appendChatMessage(event);
         return;
-    }
+      }
 
-    if (event.data.checkmark === 'received') {
+      if (event.data.checkmark === "received") {
         var checkmarkElement = document.getElementById(event.data.checkmark_id);
         if (checkmarkElement) {
-            checkmarkElement.style.display = 'inline';
+          checkmarkElement.style.display = "inline";
         }
         return;
-    }
+      }
 
-    if (event.data === 'plz-sync-points') {
-        designer.sync();
+      if (event.data === "plz-sync-points") {
+        designer.current.sync();
         return;
-    }
+      }
 
-    designer.syncData(event.data);
-};
+      designer.current.syncData(event.data);
+    };
 
-// extra code
+    // extra code
 
-connection.onstream = function(event) {
-    if (event.stream.isScreen && !event.stream.canvasStream) {
-        $('#screen-viewer').get(0).srcObject = event.stream;
-        $('#screen-viewer').hide();
-    }
-    else if (event.extra.roomOwner === true) {
-        var video = document.getElementById('main-video');
-        video.setAttribute('data-streamid', event.streamid);
+    connection.onstream = function(event: any) {
+      if (event.stream.isScreen && !event.stream.canvasStream) {
+        ($("#screen-viewer").get(0) as any).srcObject = event.stream;
+        $("#screen-viewer").hide();
+      } else if (event.extra.roomOwner === true) {
+        var video = document.getElementById("main-video") as any;
+        if (!video) return;
+        video.setAttribute("data-streamid", event.streamid);
         // video.style.display = 'none';
-        if(event.type === 'local') {
-            video.muted = true;
-            video.volume = 0;
+        if (event.type === "local") {
+          video.muted = true;
+          video.volume = 0;
         }
         video.srcObject = event.stream;
-        $('#main-video').show();
-    } else {
+        $("#main-video").show();
+      } else {
         event.mediaElement.controls = false;
 
-        var otherVideos = document.querySelector('#other-videos');
-        otherVideos.appendChild(event.mediaElement);
-    }
+        var otherVideos = document.querySelector("#other-videos");
+        otherVideos && otherVideos.appendChild(event.mediaElement);
+      }
 
-    connection.onUserStatusChanged(event);
-};
+      connection.onUserStatusChanged(event);
+    };
 
-connection.onstreamended = function(event) {
-    var video = document.querySelector('video[data-streamid="' + event.streamid + '"]');
-    if (!video) {
-        video = document.getElementById(event.streamid);
+    connection.onstreamended = function(event: any) {
+      let video = document.querySelector(
+        'video[data-streamid="' + event.streamid + '"]'
+      ) as any;
+      if (!video) {
+        video = document.getElementById(event.streamid) as any;
         if (video) {
-            video.parentNode.removeChild(video);
-            return;
+          video.parentNode.removeChild(video);
+          return;
         }
-    }
-    if (video) {
+      }
+      if (video) {
         video.srcObject = null;
-        video.style.display = 'none';
-    }
-};
-    },[])
+        video.style.display = "none";
+      }
+    };
+  }, []);
 
-    return (
-        <div>
-            <a href="#/">回dashboard</a>
+  useEffect(() => {
+    window.onkeyup = function(e) {
+      var code = e.keyCode || e.which;
+      if (code == 13) {
+        $("#btn-chat-message").click();
+      }
+    };
+  }, []);
+  return (
+    <>
+      <div
+        id="widget-container"
+        style={{
+          position: "fixed",
+          bottom: 0,
+          right: 0,
+          left: "20%",
+          height: "100%",
+          border: "1px solid black",
+          borderTop: 0,
+          borderBottom: 0
+        }}
+      ></div>
+      <video id="screen-viewer" controls playsinline autoPlay></video>
+
+      <div
+        style={{ width: "20%", height: "100%,", position: "absolute", left: 0 }}
+      >
+        <video id="main-video" controls playsinline autoPlay></video>
+        <div id="other-videos"></div>
+        <hr />
+        <div style={{ padding: "5px 10px" }}>
+          <div id="onUserStatusChanged"></div>
         </div>
-    )
-}
+
+        <div
+          style={{
+            marginTop: "20px",
+            position: "absolute",
+            bottom: 0,
+            background: "white",
+            paddingBottom: "20px",
+            width: "94%"
+          }}
+        >
+          <div id="conversation-panel"></div>
+          <div
+            id="key-press"
+            style={{ textAlign: "right", display: "none", fontSize: "11px" }}
+          >
+            <span style={{ verticalAlign: "middle" }}></span>
+            <img
+              src="https://www.webrtc-experiment.com/images/key-press.gif"
+              style={{ height: "12px", verticalAlign: "middle" }}
+            ></img>
+          </div>
+          <textarea id="txt-chat-message"></textarea>
+          <button className="btn btn-primary" id="btn-chat-message" disabled>
+            Send
+          </button>
+          <img
+            id="btn-attach-file"
+            src="https://www.webrtc-experiment.com/images/attach-file.png"
+            title="Attach a File"
+          ></img>
+          <img
+            id="btn-share-screen"
+            src="https://www.webrtc-experiment.com/images/share-screen.png"
+            title="Share Your Screen"
+          ></img>
+        </div>
+
+        <canvas id="temp-stream-canvas" style={{ display: "none" }}></canvas>
+      </div>
+    </>
+  );
+};
 
 export default Room;
