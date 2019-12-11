@@ -272,14 +272,14 @@ const Room: React.FC = () => {
     connection.current.autoCloseEntireSession = true;
 
     connection.current.enableScalableBroadcast = false;
-
+    connection.current.maxParticipantsAllowed = 1000;
     // each relaying-user should serve only 1 users
     connection.current.maxRelayLimitPerUser = 1;
     /// owner离开时即关闭
     connection.current.chunkSize = 16000;
     connection.current.enableFileSharing = true;
 
-    connection.current.ession = {
+    connection.current.session = {
       audio: true,
       video: true,
       data: true
