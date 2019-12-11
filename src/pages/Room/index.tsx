@@ -410,10 +410,10 @@ const Room: React.FC = () => {
         video.srcObject = event.stream;
         $("#main-video").show();
       } else {
-        event.mediaElement.controls = false;
-
-        var otherVideos = document.querySelector("#other-videos");
-        otherVideos && otherVideos.appendChild(event.mediaElement);
+        // event.mediaElement.controls = false;
+        // var otherVideos = document.querySelector("#other-videos");
+        // otherVideos && otherVideos.appendChild(event.mediaElement);
+        // 暂时先隐藏掉其他人的视频
       }
 
       connection.current.onUserStatusChanged(event);
