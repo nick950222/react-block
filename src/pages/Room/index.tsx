@@ -1,109 +1,46 @@
 import React from "react";
 import { useState, useEffect, useCallback, useRef } from "react";
-import RTCMultiConnection from "../../dist/RTCMultiConnection.min";
+const RTCMulticonnection = require("../../dist/RTCMulticonnection");
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap/dist/js/bootstrap";
 
 const style = require("./index.css");
 
-const connection = new (RTCMultiConnection as any)();
-
-// 首先要计算params
-
-connection.socketURL = "http://localhost:9000";
-// connection.socketURL = 'https://rtcmulticonnection.herokuapp.com:443/';
-
-connection.socketURL = "/";
-// connection.socketURL = 'https://rtcmulticonnection.herokuapp.com:443/';
-
-connection.socketMessageEvent = "canvas-dashboard-demo";
-
-// keep room opened even if owner leaves
-connection.autoCloseEntireSession = true;
-
-connection.enableScalableBroadcast = true;
-
-// each relaying-user should serve only 1 users
-connection.maxRelayLimitPerUser = 1;
-/// owner离开时即关闭
-// connection.connectSocket(function(socket) {
-//     socket.on('logs', function(log) {
-//         document.querySelector('h1').innerHTML = log.replace(/</g, '----').replace(/>/g, '___').replace(/----/g, '(<span style="color:red;">').replace(/___/g, '</span>)');
-//     });
-
-//     // this event is emitted when a broadcast is already created.
-//     socket.on('join-broadcaster', function(hintsToJoinBroadcast) {
-//         console.log('join-broadcaster', hintsToJoinBroadcast);
-
-//         connection.session = hintsToJoinBroadcast.typeOfStreams;
-//         connection.sdpConstraints.mandatory = {
-//             OfferToReceiveVideo: !!connection.session.video,
-//             OfferToReceiveAudio: !!connection.session.audio
-//         };
-//         connection.broadcastId = hintsToJoinBroadcast.broadcastId;
-//         connection.join(hintsToJoinBroadcast.userid);
-//     });
-
-//     socket.on('rejoin-broadcast', function(broadcastId) {
-//         console.log('rejoin-broadcast', broadcastId);
-
-//         connection.attachStreams = [];
-//         socket.emit('check-broadcast-presence', broadcastId, function(isBroadcastExists) {
-//             if (!isBroadcastExists) {
-//                 // the first person (i.e. real-broadcaster) MUST set his user-id
-//                 connection.userid = broadcastId;
-//             }
-
-//             socket.emit('join-broadcast', {
-//                 broadcastId: broadcastId,
-//                 userid: connection.userid,
-//                 typeOfStreams: connection.session
-//             });
-//         });
-//     });
-
-//     socket.on('broadcast-stopped', function(broadcastId) {
-//         // alert('Broadcast has been stopped.');
-//         // location.reload();
-//         console.error('broadcast-stopped', broadcastId);
-//         alert('This broadcast has been stopped.');
-//     });
-
-//     // this event is emitted when a broadcast is absent.
-//     socket.on('start-broadcasting', function(typeOfStreams) {
-//         console.log('start-broadcasting', typeOfStreams);
-
-//         // host i.e. sender should always use this!
-//         connection.sdpConstraints.mandatory = {
-//             OfferToReceiveVideo: false,
-//             OfferToReceiveAudio: false
-//         };
-//         connection.session = typeOfStreams;
-
-//         // "open" method here will capture media-stream
-//         // we can skip this function always; it is totally optional here.
-//         // we can use "connection.getUserMediaHandler" instead
-//         connection.open(connection.userid);
-//     });
-// });
-
 const Room: React.FC = () => {
-  const params = new URLSearchParams(window.location.hash.slice(6)) as any;
-  connection.extra.userFullName = params.userFullName;
-  connection.publicRoomIdentifier = params.publicRoomIdentifier;
-  const designer = useRef(new (window as any).CanvasDesigner());
+  const params = new URLSearchParams(
+    window.location.hash.slice(6)
+  ) as URLSearchParams;
+  const designer = useRef(new (window as any).CanvasDesigner()); // 其实这个
+  const progressHelper = useRef<any>({});
+  const [recentFile, setRecentFile] = useState<any>();
+  const connection = useRef<any>();
 
+  /*****
+   * 用于更新某个label吧我猜测是
+   */
+  const updateLabel = (progress: any, label: HTMLDivElement) => {
+    if (progress.position == -1) return;
+    var position = +progress.position.toFixed(2).split(".")[1] || 100;
+    label.innerHTML = position + "%";
+  };
+
+  /***
+   * 用于获取视频参与方的全称
+   * ***/
   const getFullName = (userid: string) => {
     var _userFullName = userid;
     if (
-      connection.peers[userid] &&
-      connection.peers[userid].extra.userFullName
+      connection.current.peers[userid] &&
+      connection.current.peers[userid].extra.userFullName
     ) {
-      _userFullName = connection.peers[userid].extra.userFullName;
+      _userFullName = connection.current.peers[userid].extra.userFullName;
     }
     return _userFullName;
   };
 
+  /****
+   * 用于将chatMessage更新到dom
+   */
   const appendChatMessage = (event: any, checkmark_id?: string) => {
     let div = document.createElement("div");
     let conversationPanel = document.getElementById(
@@ -119,7 +56,7 @@ const Room: React.FC = () => {
         event.data.chatMessage;
 
       if (event.data.checkmark_id) {
-        connection.send({
+        connection.current.send({
           checkmark: "received",
           checkmark_id: event.data.checkmark_id
         });
@@ -140,11 +77,156 @@ const Room: React.FC = () => {
       conversationPanel.scrollHeight - conversationPanel.scrollTop;
   };
 
+  /****
+   * 用于在上传文件时更新文件
+   */
+  const getFileHTML = (file: any) => {
+    var url = file.url || URL.createObjectURL(file);
+    var attachment =
+      '<a href="' +
+      url +
+      '" target="_blank" download="' +
+      file.name +
+      '">Download: <b>' +
+      file.name +
+      "</b></a>";
+    if (file.name.match(/\.jpg|\.png|\.jpeg|\.gif/gi)) {
+      attachment += '<br><img crossOrigin="anonymous" src="' + url + '">';
+    } else if (file.name.match(/\.wav|\.mp3/gi)) {
+      attachment += '<br><audio src="' + url + '" controls></audio>';
+    } else if (file.name.match(/\.pdf|\.js|\.txt|\.sh/gi)) {
+      attachment +=
+        '<iframe class="inline-iframe" src="' + url + '"></iframe></a>';
+    }
+    return attachment;
+  };
+
+  function addStreamStopListener(stream: any, callback?: Function) {
+    stream.addEventListener(
+      "ended",
+      function() {
+        callback && callback();
+        callback = function() {};
+      },
+      false
+    );
+
+    stream.addEventListener(
+      "inactive",
+      function() {
+        callback && callback();
+        callback = function() {};
+      },
+      false
+    );
+
+    stream.getTracks().forEach(function(track: any) {
+      track.addEventListener(
+        "ended",
+        function() {
+          callback && callback();
+          callback = function() {};
+        },
+        false
+      );
+
+      track.addEventListener(
+        "inactive",
+        function() {
+          callback && callback();
+          callback = function() {};
+        },
+        false
+      );
+    });
+  }
+
+  function replaceTrack(videoTrack: any, screenTrackId?: string) {
+    if (!videoTrack) return;
+    if (videoTrack.readyState === "ended") {
+      alert(
+        'Can not replace an "ended" track. track.readyState: ' +
+          videoTrack.readyState
+      );
+      return;
+    }
+    connection.current.getAllParticipants().forEach(function(pid: string) {
+      var peer = connection.current.peers[pid].peer;
+      if (!peer.getSenders) return;
+      var trackToReplace = videoTrack;
+      peer.getSenders().forEach(function(sender: any) {
+        if (!sender || !sender.track) return;
+        if (screenTrackId) {
+          if (trackToReplace && sender.track.id === screenTrackId) {
+            sender.replaceTrack(trackToReplace);
+            trackToReplace = null;
+          }
+          return;
+        }
+
+        if (sender.track.id !== (window as any).tempStream.getTracks()[0].id)
+          return;
+        if (sender.track.kind === "video" && trackToReplace) {
+          sender.replaceTrack(trackToReplace);
+          trackToReplace = null;
+        }
+      });
+    });
+  }
+
+  function replaceScreenTrack(stream: any) {
+    stream.isScreen = true;
+    stream.streamid = stream.id;
+    stream.type = "local";
+
+    // connection.current.attachStreams.push(stream);
+    connection.current.onstream({
+      stream: stream,
+      type: "local",
+      streamid: stream.id
+      // mediaElement: video
+    });
+
+    var screenTrackId = stream.getTracks()[0].id;
+    addStreamStopListener(stream, function() {
+      connection.current.send({
+        hideMainVideo: true
+      });
+
+      // $('#main-video').hide();
+      $("#screen-viewer").hide();
+      $("#btn-share-screen").show();
+      replaceTrack((window as any).tempStream.getTracks()[0], screenTrackId);
+    });
+
+    stream.getTracks().forEach(function(track: any) {
+      if (track.kind === "video" && track.readyState === "live") {
+        replaceTrack(track);
+      }
+    });
+
+    connection.current.send({
+      showMainVideo: true
+    });
+
+    // $('#main-video').show();
+    let top = ($("#widget-container").offset() as any).top,
+      left = ($("#widget-container").offset() as any).left,
+      width = $("#widget-container")!.width() as any,
+      height = $("#widget-container")!.height() as any;
+
+    $("#screen-viewer").css("top", top);
+    $("#screen-viewer").css("left", left);
+    $("#screen-viewer").css("width", width);
+    $("#screen-viewer").css("height", height);
+    $("#screen-viewer").show();
+  }
+
   useEffect(() => {
     designer.current.widgetHtmlURL = "widget.html";
     designer.current.widgetJsURL = "widget.min.js";
     designer.current.addSyncListener(function(data: any) {
-      connection.send(data);
+      connection.current.send(data);
     });
     designer.current.setSelected("pencil");
     designer.current.setTools({
@@ -169,46 +251,66 @@ const Room: React.FC = () => {
       code: false,
       undo: true
     });
-  }, []); // 这里网上都是初始化canvas-designer
+  }, []); // 这里往上都是初始化canvas-designer
 
   useEffect(() => {
-    connection.chunkSize = 16000;
-    connection.enableFileSharing = true;
+    const con = new (RTCMulticonnection as any)();
+    (window as any).connection = connection.current;
+    // 首先要计算params
+    // connection.socketURL = 'https://rtcmulticonnection.herokuapp.com:443/';
+    params.get("password") && (con.password = params.get("password"));
+    con.extra.userFullName = params.get("userFullName");
+    con.publicRoomIdentifier = params.get("publicRoomIdentifier");
+    con.socketURL = "/";
+    // connection.socketURL = 'https://rtcmulticonnection.herokuapp.com:443/';
 
-    connection.session = {
+    con.socketMessageEvent = "canvas-dashboard-demo";
+
+    // keep room opened even if owner leaves
+    con.autoCloseEntireSession = true;
+
+    con.enableScalableBroadcast = false;
+
+    // each relaying-user should serve only 1 users
+    con.maxRelayLimitPerUser = 1;
+    /// owner离开时即关闭
+    con.chunkSize = 16000;
+    con.enableFileSharing = true;
+
+    con.ession = {
       audio: true,
       video: true,
       data: true
     };
-    connection.sdpConstraints.mandatory = {
+    con.sdpConstraints.mandatory = {
       OfferToReceiveAudio: true,
       OfferToReceiveVideo: true
     };
 
-    connection.onUserStatusChanged = function(event: any) {
+    con.onUserStatusChanged = function(event: any) {
       const infoBar = document.getElementById("onUserStatusChanged");
       let names: Array<string> = [];
-      connection.getAllParticipants().map((pid: string) => {
+      con.getAllParticipants().map((pid: string) => {
         names.push(getFullName(pid));
       });
 
       if (!names.length) {
         names = ["Only You"];
       } else {
-        names = [connection.extra.userFullName || "You"].concat(names);
+        names = [con.extra.userFullName || "You"].concat(names);
       }
 
       infoBar &&
         (infoBar.innerHTML = "<b>Active users:</b> " + names.join(", "));
     };
 
-    connection.onopen = function(event: any) {
-      connection.onUserStatusChanged(event);
+    con.onopen = function(event: any) {
+      con.onUserStatusChanged(event);
 
       if (designer.current.pointsLength <= 0) {
         // make sure that remote user gets all drawings synced.
         setTimeout(function() {
-          connection.send("plz-sync-points");
+          con.send("plz-sync-points");
         }, 1000);
       }
 
@@ -219,13 +321,11 @@ const Room: React.FC = () => {
         "inline-block";
     };
 
-    connection.onclose = connection.onerror = connection.onleave = function(
-      event: any
-    ) {
-      connection.onUserStatusChanged(event);
+    con.onclose = con.onerror = con.onleave = function(event: any) {
+      con.onUserStatusChanged(event);
     };
 
-    connection.onmessage = function(event: any) {
+    con.onmessage = function(event: any) {
       if (event.data.showMainVideo) {
         // $('#main-video').show();
         let top = ($("#widget-container").offset() as any).top,
@@ -286,7 +386,7 @@ const Room: React.FC = () => {
 
     // extra code
 
-    connection.onstream = function(event: any) {
+    con.onstream = function(event: any) {
       if (event.stream.isScreen && !event.stream.canvasStream) {
         ($("#screen-viewer").get(0) as any).srcObject = event.stream;
         $("#screen-viewer").hide();
@@ -308,10 +408,10 @@ const Room: React.FC = () => {
         otherVideos && otherVideos.appendChild(event.mediaElement);
       }
 
-      connection.onUserStatusChanged(event);
+      con.onUserStatusChanged(event);
     };
 
-    connection.onstreamended = function(event: any) {
+    con.onstreamended = function(event: any) {
       let video = document.querySelector(
         'video[data-streamid="' + event.streamid + '"]'
       ) as any;
@@ -327,16 +427,171 @@ const Room: React.FC = () => {
         video.style.display = "none";
       }
     };
-  }, []);
+
+    con.onFileEnd = function(file: any) {
+      var html = getFileHTML(file);
+      var div = progressHelper.current[file.uuid].div;
+
+      if (file.userid === con.userid) {
+        div.innerHTML = "<b>You:</b><br>" + html;
+        div.style.background = "#cbffcb";
+
+        if (recentFile) {
+          recentFile.userIndex++;
+          var nextUserId = con.getAllParticipants()[recentFile.userIndex];
+          if (nextUserId) {
+            con.send(recentFile, nextUserId);
+          } else {
+            setRecentFile(null);
+          }
+        } else {
+          setRecentFile(null);
+        }
+      } else {
+        div.innerHTML = "<b>" + getFullName(file.userid) + ":</b><br>" + html;
+      }
+    };
+
+    con.onFileProgress = function(chunk: any, uuid: string) {
+      var helper = progressHelper.current[chunk.uuid];
+      helper.progress.value =
+        chunk.currentPosition || chunk.maxChunks || helper.progress.max;
+      updateLabel(helper.progress, helper.label);
+    };
+
+    con.onFileStart = function(file: any) {
+      let div = document.createElement("div");
+      let conversationPanel = document.getElementById("conversation-panel");
+      if (!conversationPanel) return;
+      div.className = "message";
+
+      if (file.userid === connection.current.userid) {
+        var userFullName = file.remoteUserId;
+        if (connection.current.peersBackup[file.remoteUserId]) {
+          userFullName =
+            connection.current.peersBackup[file.remoteUserId].extra
+              .userFullName;
+        }
+
+        div.innerHTML =
+          "<b>You (to: " +
+          userFullName +
+          "):</b><br><label>0%</label> <progress></progress>";
+        div.style.background = "#cbffcb";
+      } else {
+        div.innerHTML =
+          "<b>" +
+          getFullName(file.userid) +
+          ":</b><br><label>0%</label> <progress></progress>";
+      }
+
+      div.title = file.name;
+      conversationPanel && conversationPanel.appendChild(div);
+      progressHelper.current[file.uuid] = {
+        div: div,
+        progress: div.querySelector("progress"),
+        label: div.querySelector("label")
+      };
+      progressHelper.current[file.uuid].progress.max = file.maxChunks;
+
+      conversationPanel.scrollTop = conversationPanel.clientHeight;
+      conversationPanel.scrollTop =
+        conversationPanel.scrollHeight - conversationPanel.scrollTop;
+    };
+    designer.current.appendTo(
+      document.getElementById("widget-container"),
+      function() {
+        if (params.get("open") === "true") {
+          let tempStreamCanvas = document.getElementById(
+            "temp-stream-canvas"
+          ) as any; // 这个为啥不行，这个tempStreamCanvas是个什么函数呢 as HTMLCanvasElement;
+          var tempStream = tempStreamCanvas.captureStream();
+          tempStream.isScreen = true;
+          tempStream.streamid = tempStream.id;
+          tempStream.type = "local";
+          con.attachStreams.push(tempStream);
+          (window as any).tempStream = tempStream;
+
+          con.extra.roomOwner = true;
+          console.log(params.get("sessionid"));
+          con.open(params.get("sessionid"), function(
+            isRoomOpened: boolean,
+            roomid: string,
+            error: string
+          ) {
+            if (error) {
+              if (error === con.errors.ROOM_NOT_AVAILABLE) {
+                alert(
+                  "Someone already created this room. Please either join or create a separate room."
+                );
+                return;
+              }
+              alert(error);
+            }
+
+            con.socket.on("disconnect", function() {
+              location.reload();
+            });
+          });
+        } else {
+          con.join(params.get("sessionid"), function(
+            isRoomJoined: boolean,
+            roomid: string,
+            error: string
+          ) {
+            console.log("这里出现了问题", params.get("sessionid"));
+            if (error) {
+              if (error === con.errors.ROOM_NOT_AVAILABLE) {
+                alert(
+                  "This room does not exist. Please either create it or wait for moderator to enter in the room."
+                );
+                return;
+              }
+              if (error === con.errors.ROOM_FULL) {
+                alert("Room is full.");
+                return;
+              }
+              if (error === con.errors.INVALID_PASSWORD) {
+                con.password = prompt("Please enter room password.") || "";
+                if (!con.password.length) {
+                  alert("Invalid password.");
+                  return;
+                }
+                console.log(params.get("sessionid"));
+                con.join(params.get("sessionid"), function(
+                  isRoomJoined: boolean,
+                  roomid: string,
+                  error: string
+                ) {
+                  console.log(arguments);
+                  if (error) {
+                    alert(error);
+                  }
+                });
+                return;
+              }
+              alert(error);
+            }
+
+            con.socket.on("disconnect", function() {
+              location.reload();
+            });
+          });
+        }
+      }
+    );
+    connection.current = con;
+  }, []); // 这里都是初始化connection.current
 
   useEffect(() => {
-    window.onkeyup = function(e) {
+    window.onkeyup = function(e: any) {
       var code = e.keyCode || e.which;
       if (code == 13) {
         $("#btn-chat-message").click();
       }
     };
-  }, []);
+  }, []); // 按下回车时自动输入内容
+
   return (
     <>
       <div
@@ -355,7 +610,12 @@ const Room: React.FC = () => {
       <video id="screen-viewer" controls playsinline autoPlay></video>
 
       <div
-        style={{ width: "20%", height: "100%,", position: "absolute", left: 0 }}
+        style={{
+          width: "20%",
+          height: "100%",
+          position: "absolute",
+          left: 0
+        }}
       >
         <video id="main-video" controls playsinline autoPlay></video>
         <div id="other-videos"></div>
@@ -386,18 +646,91 @@ const Room: React.FC = () => {
             ></img>
           </div>
           <textarea id="txt-chat-message"></textarea>
-          <button className="btn btn-primary" id="btn-chat-message" disabled>
+          <button
+            className="btn btn-primary"
+            id="btn-chat-message"
+            disabled
+            onClick={() => {
+              var chatMessage = $(".emojionearea-editor").html();
+              $(".emojionearea-editor").html("");
+
+              if (!chatMessage || !chatMessage.replace(/ /g, "").length) return;
+
+              var checkmark_id =
+                connection.current.userid + connection.current.token();
+
+              appendChatMessage(chatMessage, checkmark_id);
+
+              connection.current.send({
+                chatMessage: chatMessage,
+                checkmark_id: checkmark_id
+              });
+
+              connection.current.send({
+                typing: false
+              });
+            }}
+          >
             Send
           </button>
           <img
             id="btn-attach-file"
             src="https://www.webrtc-experiment.com/images/attach-file.png"
             title="Attach a File"
+            onClick={e => {
+              const file = new (window as any).FileSelector(); // 这个也是外部引进来的，后面可以看看
+              file.selectSingleFile(function(
+                file: File & { userIndex: number }
+              ) {
+                if (connection.current.getAllParticipants().length >= 1) {
+                  file.userIndex = 0;
+                  connection.current.send(
+                    file,
+                    connection.current.getAllParticipants()[0]
+                  );
+                }
+                setRecentFile(file);
+              });
+            }}
           ></img>
           <img
             id="btn-share-screen"
             src="https://www.webrtc-experiment.com/images/share-screen.png"
             title="Share Your Screen"
+            onClick={() => {
+              if (!(window as any).tempStream) {
+                alert("Screen sharing is not enabled.");
+                return;
+              }
+
+              $("#btn-share-screen").hide();
+
+              if ((navigator.mediaDevices as any).getDisplayMedia) {
+                (navigator.mediaDevices as any)
+                  .getDisplayMedia((window as any).screen_constraints)
+                  .then(
+                    (stream: any) => {
+                      replaceScreenTrack(stream);
+                    },
+                    (error: any) => {
+                      alert("Please make sure to use Edge 17 or higher.");
+                    }
+                  );
+              } else if ((navigator as any).getDisplayMedia) {
+                (navigator as any)
+                  .getDisplayMedia((window as any).screen_constraints)
+                  .then(
+                    (stream: any) => {
+                      replaceScreenTrack(stream);
+                    },
+                    (error: any) => {
+                      alert("Please make sure to use Edge 17 or higher.");
+                    }
+                  );
+              } else {
+                alert("getDisplayMedia API is not available in this browser.");
+              }
+            }}
           ></img>
         </div>
 

@@ -1,34 +1,25 @@
 import React from "react";
-import { useState, useEffect, useCallback } from "react";
-import RTCMultiConnection from "../../dist/RTCMultiConnection";
+import { useState, useEffect, useCallback, useRef } from "react";
+const RTCMulticonnection = require("../../dist/RTCMulticonnection");
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap/dist/js/bootstrap";
 
 const style = require("./index.css");
 const publicRoomIdentifier = "dashboard";
-console.log(RTCMultiConnection);
-const connection = new (RTCMultiConnection as any)();
-
-connection.socketURL = "http://localhost:9000/";
-// connection.socketURL = 'https://rtcmulticonnection.herokuapp.com:443/';
-
-/// make this room public
-connection.publicRoomIdentifier = publicRoomIdentifier;
-connection.socketMessageEvent = publicRoomIdentifier;
-/// owner离开时即关闭
-connection.autoCloseEntireSession = true;
 
 const DashBoard: React.FC = () => {
   const [roomList, setRoomList] = useState(new Array());
   const [timer, setTimer] = useState();
-
+  const connection = useRef<any>();
   const loopGetRoomList = () => {
-    connection.socket.emit("get-public-rooms", publicRoomIdentifier, function(
-      listOfRooms: any
-    ) {
-      setRoomList(listOfRooms);
-      setTimer(setTimeout(loopGetRoomList, 3000));
-    });
+    connection.current.socket.emit(
+      "get-public-rooms",
+      publicRoomIdentifier,
+      function(listOfRooms: any) {
+        setRoomList(listOfRooms);
+        setTimer(setTimeout(loopGetRoomList, 3000));
+      }
+    );
   };
 
   const joinAHiddenRoom = (roomid: string) => {
@@ -38,7 +29,7 @@ const DashBoard: React.FC = () => {
       .html("Please wait...")
       .prop("disabled", true);
 
-    connection.checkPresence(roomid, function(isRoomExist: boolean) {
+    connection.current.checkPresence(roomid, function(isRoomExist: boolean) {
       if (isRoomExist === false) {
         alertBox(
           "No such room exist on this server. Room-id: " + roomid,
@@ -50,8 +41,8 @@ const DashBoard: React.FC = () => {
         return;
       }
 
-      connection.sessionid = roomid;
-      connection.isInitiator = false;
+      connection.current.sessionid = roomid;
+      connection.current.isInitiator = false;
       ($("#joinRoomModel") as any).modal("hide");
       openCanvasDesigner();
 
@@ -65,33 +56,33 @@ const DashBoard: React.FC = () => {
     ($("#startRoomModel") as any).modal("hide");
     var search =
       "?open=" +
-      connection.isInitiator +
+      connection.current.isInitiator +
       "&sessionid=" +
-      connection.sessionid +
+      connection.current.sessionid +
       "&publicRoomIdentifier=" +
-      connection.publicRoomIdentifier +
+      connection.current.publicRoomIdentifier +
       "&userFullName=" +
-      connection.extra.userFullName;
+      connection.current.extra.userFullName;
 
-    if (!!connection.password) {
-      search += "&password=" + connection.password;
+    if (!!connection.current.password) {
+      search += "&password=" + connection.current.password;
     }
 
-    window.location.hash = "#room" + search;
-    // var newWin = window.open(href);
-    // if (!newWin || newWin.closed || typeof newWin.closed == 'undefined') {
-    //     var html = '';
-    //     html += '<p>Please click following link:</p>';
-    //     html += '<p><a href="' + href + '" target="_blank">';
-    //     if(connection.isInitiator) {
-    //       html += 'Click To Open The Room';
-    //     }
-    //     else {
-    //       html += 'Click To Join The Room';
-    //     }
-    //     html += '</a></p>';
-    //     alertBox(html, 'Popups Are Blocked');
-    // }
+    let href = location.href + "room" + search;
+    var newWin = window.open(href);
+
+    if (!newWin || newWin.closed || typeof newWin.closed == "undefined") {
+      var html = "";
+      html += "<p>Please click following link:</p>";
+      html += '<p><a href="' + href + '" target="_blank">';
+      if (connection.current.isInitiator) {
+        html += "Click To Open The Room";
+      } else {
+        html += "Click To Join The Room";
+      }
+      html += "</a></p>";
+      alertBox(html, "Popups Are Blocked");
+    }
   };
 
   const alertBox = (
@@ -153,7 +144,19 @@ const DashBoard: React.FC = () => {
     });
   }
   useEffect(() => {
-    connection.connectSocket(function(socket: any) {
+    connection.current = new (RTCMulticonnection as any)();
+    (window as any).connection = connection.current;
+    connection.current.socketURL = "/";
+    // connection.socketURL = 'https://rtcmulticonnection.herokuapp.com:443/';
+
+    /// make this room public
+    connection.current.publicRoomIdentifier = publicRoomIdentifier;
+    connection.current.socketMessageEvent = publicRoomIdentifier;
+
+    // keep room opened even if owner leaves
+    connection.current.autoCloseEntireSession = true;
+
+    connection.current.connectSocket(function(socket: any) {
       loopGetRoomList(); // 在socket连接成功之后开始轮询获取所有的room
       socket.on("disconnect", () => {
         location.reload();
@@ -323,7 +326,7 @@ const DashBoard: React.FC = () => {
                     return;
                   }
 
-                  connection.extra.userFullName = fullName;
+                  connection.current.extra.userFullName = fullName;
 
                   if ($("#chk-room-password").prop("checked") === true) {
                     var roomPassword = $("#txt-room-password")
@@ -340,7 +343,7 @@ const DashBoard: React.FC = () => {
                       return;
                     }
 
-                    connection.password = roomPassword;
+                    connection.current.password = roomPassword;
                   }
 
                   var initialHTML = $("#btn-create-room").html();
@@ -349,7 +352,7 @@ const DashBoard: React.FC = () => {
                     .html("Please wait...")
                     .prop("disabled", true);
 
-                  connection.checkPresence(roomid, function(
+                  connection.current.checkPresence(roomid, function(
                     isRoomExist: boolean
                   ) {
                     if (isRoomExist === true) {
@@ -362,14 +365,14 @@ const DashBoard: React.FC = () => {
 
                     if ($("#chk-hidden-room").prop("checked") === true) {
                       // either make it unique!
-                      // connection.publicRoomIdentifier = connection.token() + connection.token();
+                      // connection.current.publicRoomIdentifier = connection.current.token() + connection.current.token();
 
                       // or set an empty value (recommended)
-                      connection.publicRoomIdentifier = "";
+                      connection.current.publicRoomIdentifier = "";
                     }
 
-                    connection.sessionid = roomid;
-                    connection.isInitiator = true;
+                    connection.current.sessionid = roomid;
+                    connection.current.isInitiator = true;
                     openCanvasDesigner();
                     $("#btn-create-room")
                       .html(initialHTML)
@@ -469,7 +472,7 @@ const DashBoard: React.FC = () => {
                     return;
                   }
 
-                  connection.extra.userFullName = fullName;
+                  connection.current.extra.userFullName = fullName;
 
                   if (
                     $("#txt-room-password-hidden")
@@ -489,11 +492,11 @@ const DashBoard: React.FC = () => {
                       );
                       return;
                     }
-                    connection.password = roomPassword;
+                    connection.current.password = roomPassword;
 
-                    connection.socket.emit(
+                    connection.current.socket.emit(
                       "is-valid-password",
-                      connection.password,
+                      connection.current.password,
                       roomid,
                       function(
                         isValidPassword: boolean,
