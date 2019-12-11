@@ -271,7 +271,6 @@ const Room: React.FC = () => {
     // keep room opened even if owner leaves
     connection.current.autoCloseEntireSession = true;
 
-    connection.current.enableScalableBroadcast = false;
     connection.current.maxParticipantsAllowed = 1000;
     // each relaying-user should serve only 1 users
     connection.current.maxRelayLimitPerUser = 1;
@@ -660,7 +659,7 @@ const Room: React.FC = () => {
           position: "fixed",
           bottom: 0,
           right: 0,
-          left: "20%",
+          left: "30%",
           height: "100%",
           border: "1px solid black",
           borderTop: 0,
@@ -671,7 +670,7 @@ const Room: React.FC = () => {
 
       <div
         style={{
-          width: "20%",
+          width: "30%",
           height: "100%",
           position: "absolute",
           left: 0
