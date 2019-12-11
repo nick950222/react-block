@@ -1,6 +1,6 @@
 import React from "react";
 import { useState, useEffect, useCallback, useRef } from "react";
-const RTCMulticonnection = require("../../dist/RTCMulticonnection.min");
+const RTCMulticonnection = require("../../dist/RTCMultiConnection.min");
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap/dist/js/bootstrap";
 
