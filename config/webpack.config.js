@@ -527,11 +527,11 @@ module.exports = function(webpackEnv) {
           ignore: [".*"]
         }
       ]),
-      new webpack.ProvidePlugin({
-        jQuery: "jquery",
-        $: "jquery",
-        "window.jQuery": "jquery"
-      }),
+      // new webpack.ProvidePlugin({
+      //   jQuery: "jquery",
+      //   $: "jquery",
+      //   "window.jQuery": "jquery"
+      // }),
 
       // Generates an `index.html` file with the <script> injected.
       new HtmlWebpackPlugin(

@@ -254,63 +254,67 @@ const Room: React.FC = () => {
   }, []); // 这里往上都是初始化canvas-designer
 
   useEffect(() => {
-    const con = new (RTCMulticonnection as any)();
-    (window as any).connection = connection.current;
+    connection.current = new (RTCMulticonnection as any)();
     // 首先要计算params
     // connection.socketURL = 'https://rtcmulticonnection.herokuapp.com:443/';
-    params.get("password") && (con.password = params.get("password"));
-    con.extra.userFullName = params.get("userFullName");
-    con.publicRoomIdentifier = params.get("publicRoomIdentifier");
-    con.socketURL = "/";
+    params.get("password") &&
+      (connection.current.password = params.get("password"));
+    connection.current.extra.userFullName = params.get("userFullName");
+    connection.current.publicRoomIdentifier = params.get(
+      "publicRoomIdentifier"
+    );
+    connection.current.socketURL = "/";
     // connection.socketURL = 'https://rtcmulticonnection.herokuapp.com:443/';
 
-    con.socketMessageEvent = "canvas-dashboard-demo";
+    connection.current.socketMessageEvent = "canvas-dashboard-demo";
 
     // keep room opened even if owner leaves
-    con.autoCloseEntireSession = true;
+    connection.current.autoCloseEntireSession = true;
 
-    con.enableScalableBroadcast = false;
+    connection.current.enableScalableBroadcast = false;
 
     // each relaying-user should serve only 1 users
-    con.maxRelayLimitPerUser = 1;
+    connection.current.maxRelayLimitPerUser = 1;
     /// owner离开时即关闭
-    con.chunkSize = 16000;
-    con.enableFileSharing = true;
+    connection.current.chunkSize = 16000;
+    connection.current.enableFileSharing = true;
 
-    con.ession = {
+    connection.current.ession = {
       audio: true,
       video: true,
       data: true
     };
-    con.sdpConstraints.mandatory = {
+    connection.current.sdpConstraints.mandatory = {
       OfferToReceiveAudio: true,
       OfferToReceiveVideo: true
     };
 
-    con.onUserStatusChanged = function(event: any) {
+    connection.current.onUserStatusChanged = function(event: any) {
+      console.log("user-state-changed");
       const infoBar = document.getElementById("onUserStatusChanged");
       let names: Array<string> = [];
-      con.getAllParticipants().map((pid: string) => {
+      connection.current.getAllParticipants().map((pid: string) => {
         names.push(getFullName(pid));
       });
 
       if (!names.length) {
         names = ["Only You"];
       } else {
-        names = [con.extra.userFullName || "You"].concat(names);
+        names = [connection.current.extra.userFullName || "You"].concat(names);
       }
 
       infoBar &&
         (infoBar.innerHTML = "<b>Active users:</b> " + names.join(", "));
     };
 
-    con.onopen = function(event: any) {
-      con.onUserStatusChanged(event);
+    connection.current.onopen = function(event: any) {
+      connection.current.onUserStatusChanged(event);
 
       if (designer.current.pointsLength <= 0) {
         // make sure that remote user gets all drawings synced.
         setTimeout(function() {
-          con.send("plz-sync-points");
+          connection.current.send("plz-sync-points");
+          console.log("show data");
         }, 1000);
       }
 
@@ -321,11 +325,15 @@ const Room: React.FC = () => {
         "inline-block";
     };
 
-    con.onclose = con.onerror = con.onleave = function(event: any) {
-      con.onUserStatusChanged(event);
+    connection.current.onclose = connection.current.onerror = connection.current.onleave = function(
+      event: any
+    ) {
+      connection.current.onUserStatusChanged(event);
     };
 
-    con.onmessage = function(event: any) {
+    connection.current.onmessage = function(event: any) {
+      console.log(event);
+      console.log(event.data);
       if (event.data.showMainVideo) {
         // $('#main-video').show();
         let top = ($("#widget-container").offset() as any).top,
@@ -386,7 +394,7 @@ const Room: React.FC = () => {
 
     // extra code
 
-    con.onstream = function(event: any) {
+    connection.current.onstream = function(event: any) {
       if (event.stream.isScreen && !event.stream.canvasStream) {
         ($("#screen-viewer").get(0) as any).srcObject = event.stream;
         $("#screen-viewer").hide();
@@ -408,10 +416,10 @@ const Room: React.FC = () => {
         otherVideos && otherVideos.appendChild(event.mediaElement);
       }
 
-      con.onUserStatusChanged(event);
+      connection.current.onUserStatusChanged(event);
     };
 
-    con.onstreamended = function(event: any) {
+    connection.current.onstreamended = function(event: any) {
       let video = document.querySelector(
         'video[data-streamid="' + event.streamid + '"]'
       ) as any;
@@ -428,19 +436,21 @@ const Room: React.FC = () => {
       }
     };
 
-    con.onFileEnd = function(file: any) {
+    connection.current.onFileEnd = function(file: any) {
       var html = getFileHTML(file);
       var div = progressHelper.current[file.uuid].div;
 
-      if (file.userid === con.userid) {
+      if (file.userid === connection.current.userid) {
         div.innerHTML = "<b>You:</b><br>" + html;
         div.style.background = "#cbffcb";
 
         if (recentFile) {
           recentFile.userIndex++;
-          var nextUserId = con.getAllParticipants()[recentFile.userIndex];
+          var nextUserId = connection.current.getAllParticipants()[
+            recentFile.userIndex
+          ];
           if (nextUserId) {
-            con.send(recentFile, nextUserId);
+            connection.current.send(recentFile, nextUserId);
           } else {
             setRecentFile(null);
           }
@@ -452,14 +462,14 @@ const Room: React.FC = () => {
       }
     };
 
-    con.onFileProgress = function(chunk: any, uuid: string) {
+    connection.current.onFileProgress = function(chunk: any, uuid: string) {
       var helper = progressHelper.current[chunk.uuid];
       helper.progress.value =
         chunk.currentPosition || chunk.maxChunks || helper.progress.max;
       updateLabel(helper.progress, helper.label);
     };
 
-    con.onFileStart = function(file: any) {
+    connection.current.onFileStart = function(file: any) {
       let div = document.createElement("div");
       let conversationPanel = document.getElementById("conversation-panel");
       if (!conversationPanel) return;
@@ -509,18 +519,18 @@ const Room: React.FC = () => {
           tempStream.isScreen = true;
           tempStream.streamid = tempStream.id;
           tempStream.type = "local";
-          con.attachStreams.push(tempStream);
+          connection.current.attachStreams.push(tempStream);
           (window as any).tempStream = tempStream;
 
-          con.extra.roomOwner = true;
+          connection.current.extra.roomOwner = true;
           console.log(params.get("sessionid"));
-          con.open(params.get("sessionid"), function(
+          connection.current.open(params.get("sessionid"), function(
             isRoomOpened: boolean,
             roomid: string,
             error: string
           ) {
             if (error) {
-              if (error === con.errors.ROOM_NOT_AVAILABLE) {
+              if (error === connection.current.errors.ROOM_NOT_AVAILABLE) {
                 alert(
                   "Someone already created this room. Please either join or create a separate room."
                 );
@@ -529,36 +539,36 @@ const Room: React.FC = () => {
               alert(error);
             }
 
-            con.socket.on("disconnect", function() {
+            connection.current.socket.on("disconnect", function() {
               location.reload();
             });
           });
         } else {
-          con.join(params.get("sessionid"), function(
+          connection.current.join(params.get("sessionid"), function(
             isRoomJoined: boolean,
             roomid: string,
             error: string
           ) {
             console.log("这里出现了问题", params.get("sessionid"));
             if (error) {
-              if (error === con.errors.ROOM_NOT_AVAILABLE) {
+              if (error === connection.current.errors.ROOM_NOT_AVAILABLE) {
                 alert(
                   "This room does not exist. Please either create it or wait for moderator to enter in the room."
                 );
                 return;
               }
-              if (error === con.errors.ROOM_FULL) {
+              if (error === connection.current.errors.ROOM_FULL) {
                 alert("Room is full.");
                 return;
               }
-              if (error === con.errors.INVALID_PASSWORD) {
-                con.password = prompt("Please enter room password.") || "";
-                if (!con.password.length) {
+              if (error === connection.current.errors.INVALID_PASSWORD) {
+                connection.current.password =
+                  prompt("Please enter room password.") || "";
+                if (!connection.current.password.length) {
                   alert("Invalid password.");
                   return;
                 }
-                console.log(params.get("sessionid"));
-                con.join(params.get("sessionid"), function(
+                connection.current.join(params.get("sessionid"), function(
                   isRoomJoined: boolean,
                   roomid: string,
                   error: string
@@ -573,25 +583,75 @@ const Room: React.FC = () => {
               alert(error);
             }
 
-            con.socket.on("disconnect", function() {
+            connection.current.socket.on("disconnect", function() {
               location.reload();
             });
           });
         }
       }
     );
-    connection.current = con;
+    (window as any).connection = connection.current;
   }, []); // 这里都是初始化connection.current
 
   useEffect(() => {
-    window.onkeyup = function(e: any) {
+    document.addEventListener("keydown", function(e: any) {
       var code = e.keyCode || e.which;
       if (code == 13) {
         $("#btn-chat-message").click();
       }
-    };
+    });
   }, []); // 按下回车时自动输入内容
 
+  useEffect(() => {
+    let keyPressTimer: any = undefined;
+    let numberOfKeys = 0;
+    ($("#txt-chat-message") as any).emojioneArea({
+      pickerPosition: "top",
+      filtersPosition: "bottom",
+      tones: false,
+      autocomplete: true,
+      inline: true,
+      hidePickerOnBlur: true,
+      events: {
+        focus: function() {
+          $(".emojionearea-category")
+            .unbind("click")
+            .bind("click", function() {
+              $(".emojionearea-button-close").click();
+            });
+        },
+        keyup: function(e: any) {
+          var chatMessage = $(".emojionearea-editor").html();
+          if (!chatMessage || !chatMessage.replace(/ /g, "").length) {
+            connection.current.send({
+              typing: false
+            });
+          }
+
+          clearTimeout(keyPressTimer);
+          numberOfKeys++;
+
+          if (numberOfKeys % 3 === 0) {
+            connection.current.send({
+              typing: true
+            });
+          }
+
+          keyPressTimer = setTimeout(function() {
+            connection.current.send({
+              typing: false
+            });
+          }, 1200);
+        },
+        blur: function() {
+          // $('#btn-chat-message').click();
+          connection.current.send({
+            typing: false
+          });
+        }
+      }
+    });
+  }, []);
   return (
     <>
       <div
@@ -649,13 +709,12 @@ const Room: React.FC = () => {
           <button
             className="btn btn-primary"
             id="btn-chat-message"
-            disabled
             onClick={() => {
               var chatMessage = $(".emojionearea-editor").html();
               $(".emojionearea-editor").html("");
 
               if (!chatMessage || !chatMessage.replace(/ /g, "").length) return;
-
+              console.log(chatMessage);
               var checkmark_id =
                 connection.current.userid + connection.current.token();
 
