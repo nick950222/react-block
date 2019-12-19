@@ -167,15 +167,29 @@ const DashBoard: React.FC = () => {
   return (
     <div>
       <header style={{ marginBottom: "20px" }}>
-        <span className="logo-text">区块链直播间控制台</span>
+        <span className="logo-text">以太坊WebRTC直播间控制台</span>
 
         <div style={{ float: "right", marginTop: "15px" }}>
           <button
             className="btn btn-primary"
             data-toggle="modal"
+            data-target="#register"
+          >
+            注册
+          </button>
+          <button
+            className="btn btn-primary"
+            data-toggle="modal"
+            data-target="#register"
+          >
+            登陆
+          </button>
+          <button
+            className="btn btn-primary"
+            data-toggle="modal"
             data-target="#startRoomModel"
           >
-            创建新房间
+            直播流获取测试 创建新房间
           </button>
           <button
             id="btn-show-join-hidden-room"
@@ -209,7 +223,7 @@ const DashBoard: React.FC = () => {
           <div className="modal-content">
             <div className="modal-header">
               <h5 className="modal-title" id="startRoomModelLabel">
-                Create A New Room
+                创建新的播间
               </h5>
               <button
                 type="button"
@@ -224,7 +238,7 @@ const DashBoard: React.FC = () => {
               <form>
                 <div className="form-group">
                   <p>
-                    <label className="col-form-label">Enter Room ID:</label>
+                    <label className="col-form-label">请输入房间号</label>
                     <input
                       type="text"
                       className="form-control"
@@ -233,7 +247,7 @@ const DashBoard: React.FC = () => {
                   </p>
 
                   <p>
-                    <label className="col-form-label">Enter Your Name:</label>
+                    <label className="col-form-label">请输入您的姓名</label>
                     <input
                       type="text"
                       className="form-control"
@@ -242,9 +256,7 @@ const DashBoard: React.FC = () => {
                   </p>
 
                   <p style={{ display: "none" }}>
-                    <label className="col-form-label">
-                      Enter Room Password:
-                    </label>
+                    <label className="col-form-label">请输入密码:</label>
                     <input
                       type="text"
                       className="form-control"
@@ -261,7 +273,7 @@ const DashBoard: React.FC = () => {
                     }}
                     onClick={() => {}}
                   >
-                    Show More Options
+                    显示更多
                   </a>
 
                   <p
@@ -282,7 +294,7 @@ const DashBoard: React.FC = () => {
                           $("#txt-room-password").focus();
                         }}
                       />{" "}
-                      Set Room Password?
+                      设置密码？
                     </label>
                   </p>
 
@@ -291,8 +303,7 @@ const DashBoard: React.FC = () => {
                     style={{ marginTop: 0, marginBottom: 0, display: "none" }}
                   >
                     <label className="col-form-label">
-                      <input type="checkbox" id="chk-hidden-room" /> Hidden
-                      Room? (Hide from the list)
+                      <input type="checkbox" id="chk-hidden-room" /> 隐藏该房间?
                     </label>
                   </p>
                 </div>
@@ -380,7 +391,7 @@ const DashBoard: React.FC = () => {
                   });
                 }}
               >
-                Create
+                创建
               </button>
             </div>
           </div>
@@ -399,7 +410,7 @@ const DashBoard: React.FC = () => {
           <div className="modal-content">
             <div className="modal-header">
               <h5 className="modal-title" id="joinRoomModelLabel">
-                Join A Room
+                加入直播间
               </h5>
               <button
                 type="button"
@@ -414,7 +425,7 @@ const DashBoard: React.FC = () => {
               <form>
                 <div className="form-group">
                   <p>
-                    <label className="col-form-label">Enter Room ID:</label>
+                    <label className="col-form-label">请输入房间号:</label>
                     <input
                       type="text"
                       className="form-control"
@@ -423,7 +434,7 @@ const DashBoard: React.FC = () => {
                   </p>
 
                   <p>
-                    <label className="col-form-label">Enter Your Name:</label>
+                    <label className="col-form-label">请输入您的姓名:</label>
                     <input
                       type="text"
                       className="form-control"
@@ -547,7 +558,7 @@ const DashBoard: React.FC = () => {
           <div className="modal-content">
             <div className="modal-header">
               <h5 className="modal-title" id="alert-title">
-                Alert
+                提示
               </h5>
               <button
                 type="button"
@@ -564,7 +575,7 @@ const DashBoard: React.FC = () => {
 
             <div className="modal-footer">
               <p id="alert-special"></p>
-              <button className="btn btn-primary btn-alert-close">Close</button>
+              <button className="btn btn-primary btn-alert-close">关闭</button>
             </div>
           </div>
         </div>
@@ -579,7 +590,7 @@ const DashBoard: React.FC = () => {
           <div className="modal-content">
             <div className="modal-header">
               <h5 className="modal-title" id="confirm-title">
-                Please Confirm
+                请确认在新窗口中打开界面
               </h5>
               <button
                 type="button"
@@ -594,10 +605,10 @@ const DashBoard: React.FC = () => {
 
             <div className="modal-footer">
               <button className="btn btn-confirm-close" id="btn-confirm-close">
-                Cancel
+                取消
               </button>
               <button className="btn btn-primary" id="btn-confirm-action">
-                Confirm
+                确认
               </button>
             </div>
           </div>
@@ -608,13 +619,13 @@ const DashBoard: React.FC = () => {
         <table className="table">
           <thead>
             <tr>
-              <th>#</th>
-              <th>Room ID</th>
-              <th>Owner ID</th>
-              <th>Session</th>
-              <th>Extra</th>
-              <th>Participants</th>
-              <th>Join</th>
+              <th>编号</th>
+              <th>房间号</th>
+              <th>所有者ID</th>
+              <th>连接状态</th>
+              <th>备注</th>
+              <th>参与者</th>
+              <th>加入</th>
             </tr>
           </thead>
           <tbody id="rooms-list">
@@ -679,7 +690,7 @@ const DashBoard: React.FC = () => {
                       <span
                         style={{ borderBottom: "1px dotted red", color: "red" }}
                       >
-                        Room is full
+                        房间已满
                       </span>
                     </td>
                   ) : (
@@ -713,7 +724,7 @@ const DashBoard: React.FC = () => {
                             .prop("disabled", false);
                         }}
                       >
-                        Join
+                        加入房间
                       </button>
                     </td>
                   )}
@@ -724,9 +735,7 @@ const DashBoard: React.FC = () => {
         </table>
       </div>
 
-      <footer style={{ textAlign: "center" }}>
-        Dashboard + Video Conferencing + Chat + File Sharing
-      </footer>
+      <footer style={{ textAlign: "center" }}>直播间展示台</footer>
     </div>
   );
 };

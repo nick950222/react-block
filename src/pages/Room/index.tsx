@@ -297,13 +297,12 @@ const Room: React.FC = () => {
       });
 
       if (!names.length) {
-        names = ["Only You"];
+        names = ["直播间中只有您一人"];
       } else {
         names = [connection.current.extra.userFullName || "You"].concat(names);
       }
 
-      infoBar &&
-        (infoBar.innerHTML = "<b>Active users:</b> " + names.join(", "));
+      infoBar && (infoBar.innerHTML = "<b>当前用户:</b> " + names.join(", "));
     };
 
     connection.current.onopen = function(event: any) {

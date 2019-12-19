@@ -74,7 +74,7 @@ button[disabled] {
 #conversation-panel {
   margin-bottom: 20px;
   text-align: left;
-  max-height: 200px;
+  max-height: 420px;
   overflow: auto;
   border-top: 1px solid #e5e5e5;
   width: 106%;
